@@ -137,25 +137,30 @@ Going by its source, it rebuilds `requirements.txt` with `pip-compile`, which
 keeps the hashes but drops the header (the command at the top of the file,
 including its cutoff date).
 
-These PRs get no CI run, so check them by hand. For Python PRs:
+The PR Checks workflow runs on every PR, with no secrets. It does the locked
+install and runs `tests/`, which make real `aiohttp` and `requests` calls against
+a local stub, not GitHub. To run them yourself, use
+`python3 -m unittest tests.test_queries`.
+
+That doesn't cover a real run against GitHub, so also check these by hand. For
+Python PRs:
 
 - Every package in `requirements.txt` still has `--hash=sha256:` lines.
-- No package is newer than two weeks. The cooldown doesn't cover a package the
-  update pulls in or forces up. To check, on a checkout of the PR's branch, run
+- No package is newer than two weeks, unless it fixes a known advisory in the
+  version it replaces. The cooldown doesn't cover a package the update pulls in
+  or forces up. To check, on a checkout of the PR's branch, run
   the command below without `--upgrade`, using a date two weeks ago. If a
   version moves back, a package disappears or the command fails, something is
   too new. Restore `requirements.txt` afterwards.
 - After merging, the run's log has no `aiohttp failed` lines and the cards show
-  real values. A green job alone doesn't prove the update works. A healthy run
-  never calls the `requests` fallback either, so this only shows that `requests`
-  and the packages it needs import. Any error prints that line, so compare a
-  lone one with the next run. If the check keeps failing, revert the merge. The
+  real values. A green job alone doesn't prove the update works. Any error prints
+  that line, so compare a lone one with the next run. If the check keeps failing, revert the merge. The
   next good run regenerates the cards.
 
 For Actions PRs:
 
 - The reference stays a full commit SHA with its version in a comment.
-- The release is at least two weeks old.
+- The release is at least two weeks old, with the same exception for advisories.
 - The first run after merging passes.
 
 To update by hand, run this with [`uv`](https://docs.astral.sh/uv/), using a
