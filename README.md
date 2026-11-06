@@ -131,20 +131,28 @@ lockfile generated from it, with a hash for every package. Don't edit
 `requirements.txt` by hand: the workflow installs with `--require-hashes`, so
 the install fails if a package doesn't match.
 
-Dependabot is set to check weekly and open one PR for Python updates, with a
-14-day cooldown on the versions it targets. It rebuilds `requirements.txt` with
-`pip-compile`, which keeps the hashes but drops the header (the command at the
-top of the file, including its cutoff date).
+Dependabot is set to check weekly, with one PR for Python updates and separate
+PRs for the pinned actions, and a 14-day cooldown on the versions it targets.
+Going by its source, it rebuilds `requirements.txt` with `pip-compile`, which
+keeps the hashes but drops the header (the command at the top of the file,
+including its cutoff date).
 
-These PRs get no CI run, so check them by hand:
+These PRs get no CI run, so check them by hand. For Python PRs:
 
 - Every package in `requirements.txt` still has `--hash=sha256:` lines.
-- No package is newer than two weeks. The cooldown doesn't cover a package
-  pulled in as a new requirement. To check, run the command below without
-  `--upgrade`, using a date two weeks ago: any version that moves back is too
-  new. Discard that output afterwards.
+- No package is newer than two weeks. The cooldown doesn't cover a package the
+  update pulls in or forces up. To check, on a checkout of the PR's branch, run
+  the command below without `--upgrade`, using a date two weeks ago. If a
+  version moves back, a package disappears or the command fails, something is
+  too new. Restore `requirements.txt` afterwards.
 - After merging, the run's log has no `aiohttp failed` lines and the cards show
   real values. A green job alone doesn't prove the update works.
+
+For Actions PRs:
+
+- The reference stays a full commit SHA with its version in a comment.
+- The release is at least two weeks old.
+- The first run after merging passes.
 
 To update by hand, run this with [`uv`](https://docs.astral.sh/uv/), using a
 date two weeks ago:
@@ -161,8 +169,9 @@ without updating the rest. A cutoff older than a locked version moves that
 version back. The command at the top of `requirements.txt`, when there is one,
 only records how that file was generated, and it doesn't update versions.
 
-`--python-version` must match `.python-version`, which the workflow and
-Dependabot both read. Regenerate the lockfile when that changes.
+`--python-version` must match `.python-version`. The workflow is set to read
+that file, and going by its source, Dependabot does too. Regenerate the lockfile
+when that changes.
 
 # Support the Project
 

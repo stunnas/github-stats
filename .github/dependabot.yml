@@ -1,4 +1,4 @@
-# Keeps the pinned actions and the Python lockfile current. Version updates wait 14 days after a release.
+# Keeps the pinned actions and the Python lockfile current.
 # See "Updating Dependencies" in the README for what to check on these PRs.
 version: 2
 updates:
