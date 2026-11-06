@@ -146,7 +146,10 @@ These PRs get no CI run, so check them by hand. For Python PRs:
   version moves back, a package disappears or the command fails, something is
   too new. Restore `requirements.txt` afterwards.
 - After merging, the run's log has no `aiohttp failed` lines and the cards show
-  real values. A green job alone doesn't prove the update works.
+  real values. A green job alone doesn't prove the update works. A healthy run
+  never calls the `requests` fallback either, so this only shows that `requests`
+  and the packages it needs import. If this check fails, revert the merge. The
+  next good run regenerates the cards.
 
 For Actions PRs:
 
