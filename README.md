@@ -124,6 +124,26 @@ For more information on inaccuracies, see issue
 10. Star this repo if you like it!
 
 
+# Updating Dependencies
+
+`requirements.in` lists the direct dependencies. `requirements.txt` is the
+lockfile generated from it, with a hash for every package. Don't edit
+`requirements.txt` by hand: the workflow installs with `--require-hashes`, so
+the install fails if a package doesn't match.
+
+The locked versions don't update on their own. To update them, or after
+changing `requirements.in`, run this with
+[`uv`](https://docs.astral.sh/uv/), using a date two weeks ago:
+
+```sh
+uv pip compile requirements.in --generate-hashes --python-version 3.13 \
+  --python-platform linux --exclude-newer YYYY-MM-DDT00:00:00Z \
+  -o requirements.txt
+```
+
+`--python-version` must match `python-version` in
+`.github/workflows/main.yml`. Regenerate the lockfile when that changes.
+
 # Support the Project
 
 There are a few things you can do to support the project:
