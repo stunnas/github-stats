@@ -128,7 +128,7 @@ For more information on inaccuracies, see issue
 
 `requirements.in` lists the direct dependencies. `requirements.txt` is the
 lockfile generated from it, with a hash for every package. Don't edit
-`requirements.txt` by hand: the workflow installs with `--require-hashes`, so
+`requirements.txt` by hand: both workflows install with `--require-hashes`, so
 the install fails if a package doesn't match.
 
 Dependabot is set to check weekly, with one PR for Python updates and separate
@@ -137,13 +137,13 @@ Going by its source, it rebuilds `requirements.txt` with `pip-compile`, which
 keeps the hashes but drops the header (the command at the top of the file,
 including its cutoff date).
 
-The PR Checks workflow runs on every PR, with no secrets. It does the locked
-install and runs `tests/`, which make real `aiohttp` and `requests` calls against
-a local stub, not GitHub. To run them yourself, use
-`python3 -m unittest tests.test_queries`.
+The PR Checks workflow is set to run on every PR, with no secrets, but it isn't
+a required check yet. It does the locked install and runs `tests/`, which make
+real `aiohttp` and `requests` calls against a local stub, not GitHub. To run them
+yourself, use `python3 -m unittest discover -s tests`.
 
-That doesn't cover a real run against GitHub, so also check these by hand. For
-Python PRs:
+It doesn't check package ages, HTTPS or a real run against GitHub, so also check
+these by hand. For Python PRs:
 
 - Every package in `requirements.txt` still has `--hash=sha256:` lines.
 - No package is newer than two weeks, unless it fixes a known advisory in the
@@ -151,7 +151,8 @@ Python PRs:
   or forces up. To check, on a checkout of the PR's branch, run
   the command below without `--upgrade`, using a date two weeks ago. If a
   version moves back, a package disappears or the command fails, something is
-  too new. Restore `requirements.txt` afterwards.
+  too new, unless it's the package the advisory fixes. Restore
+  `requirements.txt` afterwards.
 - After merging, the run's log has no `aiohttp failed` lines and the cards show
   real values. A green job alone doesn't prove the update works. Any error prints
   that line, so compare a lone one with the next run. If the check keeps failing, revert the merge. The
@@ -178,7 +179,7 @@ without updating the rest. A cutoff older than a locked version moves that
 version back. The command at the top of `requirements.txt`, when there is one,
 only records how that file was generated, and it doesn't update versions.
 
-`--python-version` must match `.python-version`. The workflow is set to read
+`--python-version` must match `.python-version`. Both workflows are set to read
 that file, and going by its source, Dependabot does too. Regenerate the lockfile
 when that changes.
 

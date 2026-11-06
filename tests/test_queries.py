@@ -13,7 +13,6 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest import mock
 
 import aiohttp
-import certifi
 import requests
 
 import generate_images  # noqa: F401 (the workflow's entry point has to import)
@@ -35,17 +34,31 @@ class StubGitHub(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_POST(self):
-        self.rfile.read(int(self.headers["Content-Length"]))
+        body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        self.server.calls.append(("POST", self.path, body))
         self.server.auth.append(self.headers["Authorization"])
         self._send(200, GRAPHQL_RESULT)
 
     def do_GET(self):
+        self.server.calls.append(("GET", self.path, None))
         self.server.auth.append(self.headers["Authorization"])
-        if self.path.startswith("/computing") and not self.server.computed:
+        if self.path == "/computing" and not self.server.computed:
             self.server.computed = True
             self._send(202)
+        elif self.path == "/always-computing":
+            self._send(202)
+        elif self.path == "/html-error" and "aiohttp" in self.headers["User-Agent"]:
+            self._send_html_error()
         else:
             self._send(200, REST_RESULT)
+
+    def _send_html_error(self):
+        data = b"<html>Server error</html>"
+        self.send_response(500)
+        self.send_header("Content-Type", "text/html")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
 
     def log_message(self, format, *args):
         pass
@@ -79,9 +92,12 @@ class QueriesTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), StubGitHub)
         self.server.auth = []
+        self.server.calls = []
         self.server.computed = False
         self.base = f"http://127.0.0.1:{self.server.server_port}"
-        thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        thread = threading.Thread(
+            target=self.server.serve_forever, args=(0.01,), daemon=True
+        )
         thread.start()
         self.addCleanup(thread.join)
         self.addCleanup(self.server.server_close)
@@ -93,7 +109,8 @@ class QueriesTest(unittest.IsolatedAsyncioTestCase):
 
     def _patch_requests(self, name, real):
         def local(url, **kwargs):
-            return real(url.replace(GITHUB, self.base), timeout=5, **kwargs)
+            kwargs.setdefault("timeout", 5)
+            return real(url.replace(GITHUB, self.base), **kwargs)
 
         patcher = mock.patch.object(requests, name, side_effect=local)
         self.addCleanup(patcher.stop)
@@ -116,6 +133,9 @@ class QueriesTest(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("aiohttp failed", output)
         self.requests_post.assert_not_called()
         self.assertEqual(self.server.auth, [f"Bearer {TOKEN}"])
+        self.assertEqual(
+            self.server.calls, [("POST", "/graphql", {"query": "{ viewer }"})]
+        )
 
     async def test_rest_through_aiohttp(self):
         result, output = await self._run_aiohttp(lambda q: q.query_rest("/stats"))
@@ -123,15 +143,41 @@ class QueriesTest(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("aiohttp failed", output)
         self.requests_get.assert_not_called()
         self.assertEqual(self.server.auth, [f"token {TOKEN}"])
+        self.assertEqual(self.server.calls, [("GET", "/stats", None)])
+
+    async def _query_rest_without_waiting(self, path):
+        sleep = mock.AsyncMock()
+
+        async def call(queries):
+            with mock.patch("asyncio.sleep", sleep):
+                return await queries.query_rest(path)
+
+        result, output = await self._run_aiohttp(call)
+        return result, output, sleep
 
     async def test_rest_retries_after_202(self):
-        with mock.patch.object(github_stats.asyncio, "sleep", mock.AsyncMock()):
-            result, output = await self._run_aiohttp(
-                lambda q: q.query_rest("/computing")
-            )
+        result, output, sleep = await self._query_rest_without_waiting("/computing")
         self.assertEqual(result, REST_RESULT)
         self.assertIn("A path returned 202", output)
-        self.assertEqual(len(self.server.auth), 2)
+        self.assertNotIn("aiohttp failed", output)
+        self.requests_get.assert_not_called()
+        sleep.assert_awaited_once_with(2)
+        self.assertEqual(len(self.server.calls), 2)
+
+    async def test_rest_gives_up_after_too_many_202s(self):
+        result, output, sleep = await self._query_rest_without_waiting(
+            "/always-computing"
+        )
+        self.assertEqual(result, {})
+        self.assertIn("There were too many 202s", output)
+        self.assertEqual(len(self.server.calls), 60)
+        self.assertEqual(sleep.await_count, 60)
+
+    async def test_html_error_falls_back_to_requests(self):
+        result, output = await self._run_aiohttp(lambda q: q.query_rest("/html-error"))
+        self.assertEqual(result, REST_RESULT)
+        self.assertIn("aiohttp failed for rest query", output)
+        self.requests_get.assert_called_once()
 
     async def test_graphql_falls_back_to_requests(self):
         result, output = await self._run(
@@ -140,6 +186,10 @@ class QueriesTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, GRAPHQL_RESULT)
         self.assertIn("aiohttp failed for GraphQL query", output)
         self.requests_post.assert_called_once()
+        self.assertEqual(self.server.auth, [f"Bearer {TOKEN}"])
+        self.assertEqual(
+            self.server.calls, [("POST", "/graphql", {"query": "{ viewer }"})]
+        )
 
     async def test_rest_falls_back_to_requests(self):
         result, output = await self._run(
@@ -148,13 +198,11 @@ class QueriesTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, REST_RESULT)
         self.assertIn("aiohttp failed for rest query", output)
         self.requests_get.assert_called_once()
+        self.assertEqual(self.server.auth, [f"token {TOKEN}"])
+        self.assertEqual(self.server.calls, [("GET", "/stats", None)])
 
 
 class CertificatesTest(unittest.TestCase):
-    def test_certifi_bundle_loads(self):
-        context = ssl.create_default_context(cafile=certifi.where())
+    def test_requests_ca_bundle_loads(self):
+        context = ssl.create_default_context(cafile=requests.certs.where())
         self.assertGreater(len(context.get_ca_certs()), 0)
-
-
-if __name__ == "__main__":
-    unittest.main()

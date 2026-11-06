@@ -34,4 +34,4 @@ jobs:
 
     # A local stub stands in for GitHub, so this needs no secrets
     - name: Run tests
-      run: python3 -m unittest tests.test_queries -v
+      run: python3 -m unittest discover -s tests -v
