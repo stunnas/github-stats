@@ -131,15 +131,18 @@ lockfile generated from it, with a hash for every package. Don't edit
 `requirements.txt` by hand: the workflow installs with `--require-hashes`, so
 the install fails if a package doesn't match.
 
-The locked versions don't update on their own. To update them, or after
-changing `requirements.in`, run this with
+The locked versions don't update on their own. To update them, run this with
 [`uv`](https://docs.astral.sh/uv/), using a date two weeks ago:
 
 ```sh
 uv pip compile requirements.in --generate-hashes --python-version 3.13 \
-  --python-platform linux --exclude-newer YYYY-MM-DDT00:00:00Z \
+  --python-platform linux --exclude-newer YYYY-MM-DDT00:00:00Z --upgrade \
   -o requirements.txt
 ```
+
+`--upgrade` is what moves the versions. Without it, `uv` keeps the ones already
+in `requirements.txt`, so leave it out to add a package to `requirements.in`
+without updating the rest.
 
 `--python-version` must match `python-version` in
 `.github/workflows/main.yml`. Regenerate the lockfile when that changes.
