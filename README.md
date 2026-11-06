@@ -135,7 +135,8 @@ Dependabot is set to check weekly, with one PR for Python updates and separate
 PRs for the pinned actions, and a 14-day cooldown on the versions it targets.
 Going by its source, it rebuilds `requirements.txt` with `pip-compile`, which
 keeps the hashes but drops the header (the command at the top of the file,
-including its cutoff date).
+including its cutoff date). Security updates are a separate repo setting. They
+can arrive at any time and skip the cooldown.
 
 The PR Checks workflow is set to run on every PR, with no secrets, but it isn't
 a required check yet. It does the locked install and runs `tests/`, which make
@@ -143,8 +144,9 @@ real `aiohttp` and `requests` calls against a local stub, not GitHub. To run the
 yourself, use `python3 -m unittest discover -s tests`.
 
 It doesn't check package ages, HTTPS or a real run against GitHub, so also check
-these by hand. For Python PRs:
+these by hand. For Dependabot's Python PRs:
 
+- PR Checks ran and passed.
 - Every package in `requirements.txt` still has `--hash=sha256:` lines.
 - No package is newer than two weeks, unless it fixes a known advisory in the
   version it replaces. The cooldown doesn't cover a package the update pulls in
@@ -158,8 +160,9 @@ these by hand. For Python PRs:
   that line, so compare a lone one with the next run. If the check keeps failing, revert the merge. The
   next good run regenerates the cards.
 
-For Actions PRs:
+For Dependabot's Actions PRs:
 
+- PR Checks ran and passed.
 - The reference stays a full commit SHA with its version in a comment.
 - The release is at least two weeks old, with the same exception for advisories.
 - The first run after merging passes.

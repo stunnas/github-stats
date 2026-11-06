@@ -170,6 +170,8 @@ class QueriesTest(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(result, {})
         self.assertIn("There were too many 202s", output)
+        self.assertNotIn("aiohttp failed", output)
+        self.requests_get.assert_not_called()
         self.assertEqual(len(self.server.calls), 60)
         self.assertEqual(sleep.await_count, 60)
 
@@ -178,6 +180,7 @@ class QueriesTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, REST_RESULT)
         self.assertIn("aiohttp failed for rest query", output)
         self.requests_get.assert_called_once()
+        self.assertEqual(self.server.calls, [("GET", "/html-error", None)] * 2)
 
     async def test_graphql_falls_back_to_requests(self):
         result, output = await self._run(
