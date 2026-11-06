@@ -1,0 +1,37 @@
+name: PR Checks
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Set up Python
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+      with:
+        python-version-file: .python-version
+        architecture: 'x64'
+        cache: 'pip'
+
+    # The same install as the daily workflow
+    - name: Install requirements
+      run: |
+        python3 -m pip install --require-hashes --only-binary :all: -r requirements.txt
+
+    # A local stub stands in for GitHub, so this needs no secrets
+    - name: Run tests
+      run: python3 -m unittest discover -s tests -v
