@@ -1,0 +1,23 @@
+# Keeps the pinned actions and the Python lockfile current. Version updates wait 14 days after a release.
+# Python updates come as one PR. Dependabot rebuilds requirements.txt with pip-compile, which keeps the hashes
+# but drops the header. The workflow has no pull_request trigger, so these PRs get no CI run.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    allow:
+      - dependency-type: all
+    groups:
+      python:
+        patterns:
+          - "*"
