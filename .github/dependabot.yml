@@ -1,0 +1,28 @@
+# Keeps the pinned actions and the Python lockfile current.
+# See "Updating Dependencies" in the README for what to check on these PRs.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    commit-message:
+      prefix: ci
+      include: scope
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    commit-message:
+      prefix: build
+      include: scope
+    allow:
+      - dependency-type: all
+    groups:
+      python:
+        patterns:
+          - "*"
