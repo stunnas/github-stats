@@ -1,130 +1,105 @@
-# [GitHub Stats Visualization](https://github.com/jstrieb/github-stats)
+# GitHub Stats
 
-<!--
-https://github.community/t/support-theme-context-for-images-in-light-vs-dark-mode/147981/84
--->
-<a href="https://github.com/jstrieb/github-stats">
-<img src="https://github.com/jstrieb/github-stats/blob/master/generated/overview.svg#gh-dark-mode-only" />
-<img src="https://github.com/jstrieb/github-stats/blob/master/generated/languages.svg#gh-dark-mode-only" />
-<img src="https://github.com/jstrieb/github-stats/blob/master/generated/overview.svg#gh-light-mode-only" />
-<img src="https://github.com/jstrieb/github-stats/blob/master/generated/languages.svg#gh-light-mode-only" />
-</a>
+![Overview card](https://raw.githubusercontent.com/stunnas/github-stats/master/generated/overview.svg#gh-dark-mode-only)
+![Languages card](https://raw.githubusercontent.com/stunnas/github-stats/master/generated/languages.svg#gh-dark-mode-only)
+![Overview card](https://raw.githubusercontent.com/stunnas/github-stats/master/generated/overview.svg#gh-light-mode-only)
+![Languages card](https://raw.githubusercontent.com/stunnas/github-stats/master/generated/languages.svg#gh-light-mode-only)
 
-Generate visualizations of GitHub user and repository statistics with GitHub
-Actions. Visualizations can include data for both private repositories, and for
-repositories you have contributed to, but do not own.
+My GitHub stats cards, regenerated every day by GitHub Actions. They include my
+private repos and repos I've contributed to but don't own, which a GitHub
+profile doesn't show in full. The cards follow GitHub's light or dark theme.
 
-Generated images automatically switch between GitHub light theme and GitHub
-dark theme.
+This is my copy of [jstrieb/github-stats](https://github.com/jstrieb/github-stats).
+See [Credits and License](#credits-and-license).
 
-## Background
+## How It Works
 
-When someone views a profile on GitHub, it is often because they are curious
-about a user's open source projects and contributions. Unfortunately, that
-user's stars, forks, and pinned repositories do not necessarily reflect the
-contributions they make to private repositories. The data likewise does not
-present a complete picture of the user's total contributions beyond the current
-year.
+The "Generate Stats Images" workflow runs daily, on every push to
+`master`, and by hand from the [Actions
+page](../../actions?query=workflow%3A"Generate+Stats+Images"). It collects
+statistics through the GitHub API using the `ACCESS_TOKEN` secret, fills in the
+SVGs from `templates/`, and commits the results to `generated/`.
 
-This project aims to collect a variety of profile and repository statistics
-using the GitHub API. It then generates images that can be displayed in
-repository READMEs, or in a user's [Profile
-README](https://docs.github.com/en/github/setting-up-and-managing-your-github-profile/managing-your-profile-readme).
+Only cards that changed get a commit, so if a card looks stale, check the latest
+run on the Actions page.
 
-Since the project runs on GitHub Actions, no server is required to regularly
-regenerate the images with updated statistics. Likewise, since the user runs
-the analysis code themselves via GitHub Actions, they can use their GitHub
-access token to collect statistics on private repositories that an external
-service would be unable to access.
+| Path | What it holds |
+|---|---|
+| `.claude/` | Claude Code settings for this repo |
+| `.github/` | Workflows and the Dependabot config |
+| `generated/` | The generated cards |
+| `templates/` | The SVG templates for the cards |
+| `tests/` | Tests for the API layer |
+| `generate_images.py` | Reads the settings and writes the cards |
+| `github_stats.py` | Collects the statistics from the GitHub API |
 
-## Disclaimer
+## Known Limits
 
-If the project is used with an access token that has sufficient permissions to
-read private repositories, it may leak details about those repositories in
-error messages. For example, the `aiohttp` library—used for asynchronous API
-requests—may include the requested URL in exceptions, which can leak the name
-of private repositories. If there is an exception caused by `aiohttp`, this
-exception will be viewable in the Actions tab of the repository fork, and
-anyone may be able to see the name of one or more private repositories.
+**Private repo names can leak.** The token can read private repos. When an
+`aiohttp` request fails, the code retries with `requests`, and if that fails too,
+the traceback in the Actions log can include the URL, which has the repo name in
+it. Anyone can read the logs of a public repo.
 
-Due to some issues with the GitHub statistics API, there are some situations
-where it returns inaccurate results. Specifically, the repository view count
-statistics and total lines of code modified are probably somewhat inaccurate.
-Unexpectedly, these values will become more accurate over time as GitHub
-caches statistics for your repositories. Additionally, repositories that were
-last contributed to more than a year ago may not be included in the statistics
-due to limitations in the results returned by the API.
-
-For more information on inaccuracies, see issue
+**Some numbers are approximate.** View counts only cover the past two weeks.
+Lines changed are probably somewhat off because of how GitHub's statistics API
+behaves, and get more accurate as GitHub caches statistics for each repo. Repos
+last contributed to more than a year ago may be missing. The original project's issues
 [#2](https://github.com/jstrieb/github-stats/issues/2),
-[#3](https://github.com/jstrieb/github-stats/issues/3), and
-[#13](https://github.com/jstrieb/github-stats/issues/13).
+[#3](https://github.com/jstrieb/github-stats/issues/3) and
+[#13](https://github.com/jstrieb/github-stats/issues/13) have more detail.
 
-# Installation
+## Run Your Own Copy
 
-<!-- TODO: Add details and screenshots -->
+The original project has since been rewritten in Zig, so use
+[its repo](https://github.com/jstrieb/github-stats) for the current version. To
+run this Python version instead:
 
-1. Create a personal access token (not the default GitHub Actions token) using
-   the instructions
-   [here](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token).
-   Personal access token must have permissions: `read:user` and `repo`. Copy
-   the access token when it is generated – if you lose it, you will have to
-   regenerate the token.
-   - Some users are reporting that it can take a few minutes for the personal
-     access token to work. For more, see 
-     [#30](https://github.com/jstrieb/github-stats/issues/30).
-2. Create a copy of this repository by clicking
-   [here](https://github.com/jstrieb/github-stats/generate). Note: this is
-   **not** the same as forking a copy because it copies everything fresh,
-   without the huge commit history. 
-3. Go to the "Secrets" page of your copy of the repository. If this is the
-   README of your copy, click [this link](../../settings/secrets/actions) to go
-   to the "Secrets" page. Otherwise, go to the "Settings" tab of the
-   newly-created repository and go to the "Secrets" page (bottom left).
-4. Create a new secret with the name `ACCESS_TOKEN` and paste the copied
-   personal access token as the value.
-5. It is possible to change the type of statistics reported by adding other
-   repository secrets. 
-   - To ignore certain repos, add them (in owner/name format e.g.,
-     `jstrieb/github-stats`) separated by commas to a new secret—created as
-     before—called `EXCLUDED`.
-   - To ignore certain languages, add them (separated by commas) to a new
-     secret called `EXCLUDED_LANGS`. For example, to exclude HTML and TeX you
-     could set the value to `html,tex`.
-   - To show statistics only for "owned" repositories and not forks with
-     contributions, add an environment variable (under the `env` header in the
-     [main
-     workflow](https://github.com/jstrieb/github-stats/blob/master/.github/workflows/main.yml))
-     called `EXCLUDE_FORKED_REPOS` with a value of `true`.
-   - These other values are added as secrets by default to prevent leaking
-     information about private repositories. If you're not worried about that,
-     you can change the values directly [in the Actions workflow
-     itself](https://github.com/jstrieb/github-stats/blob/05de1314b870febd44d19ad2f55d5e59d83f5857/.github/workflows/main.yml#L48-L53).
-6. Go to the [Actions
-   Page](../../actions?query=workflow%3A"Generate+Stats+Images") and press "Run
-   Workflow" on the right side of the screen to generate images for the first
-   time. 
-   - The images will be automatically regenerated every 24 hours, but they can
-     be regenerated manually by running the workflow this way.
-7. Take a look at the images that have been created in the
-   [`generated`](generated) folder.
-8. To add your statistics to your GitHub Profile README, copy and paste the
-   following lines of code into your markdown content. Change the `username`
-   value to your GitHub username.
+1. Fork this repo, then turn on workflows in the fork's Actions tab. A fork of a
+   public repo is always public, so [Known Limits](#known-limits) applies to your
+   logs too, and your cards publish totals that include your private repos.
+   Syncing the fork runs the synced code with your token, so read the changes
+   first.
+2. Create a classic personal access token with an expiry and the `repo` and
+   `read:org` scopes, the ones this repo's token has. `read:org` may not be needed,
+   but I haven't tested without it. A fine-grained token only covers one owner,
+   so it can't read private repos across owners. The `repo` scope can also write
+   to your repos, so keep the token only as an Actions secret. Renew it before it
+   expires: an expired token still gives a green run, but the cards drop to zeros.
+3. Under Settings, Secrets and variables, Actions in your fork, add it as a
+   repository secret called `ACCESS_TOKEN`.
+4. Optionally, change what the cards count:
+   - `EXCLUDED` secret: repos to ignore, in `owner/name` format, separated by
+     commas.
+   - `EXCLUDED_LANGS` secret: languages to ignore, separated by commas, such as
+     `html,tex`.
+   - `EXCLUDE_FORKED_REPOS` in [the workflow](.github/workflows/main.yml): set it
+     to `true` to leave out repos GitHub lists as contributed to. Repos you
+     collaborate on may still count. Your own forks are left out either way.
+
+   The first two are secrets so they don't reveal details of private repos.
+5. Run "Generate Stats Images" from your fork's Actions tab. The cards appear in
+   `generated/`.
+6. To show them on your profile, add these lines to your profile README, with
+   your GitHub username in place of `username`:
    ```md
    ![](https://raw.githubusercontent.com/username/github-stats/master/generated/overview.svg#gh-dark-mode-only)
    ![](https://raw.githubusercontent.com/username/github-stats/master/generated/overview.svg#gh-light-mode-only)
-   ```
-   ```md
    ![](https://raw.githubusercontent.com/username/github-stats/master/generated/languages.svg#gh-dark-mode-only)
    ![](https://raw.githubusercontent.com/username/github-stats/master/generated/languages.svg#gh-light-mode-only)
    ```
-9. Link back to this repository so that others can generate their own
-   statistics images.
-10. Star this repo if you like it!
 
+## What I Changed
 
-# Updating Dependencies
+Changes from the original, made in November 2026:
+
+- Moved to Python 3.13, set in `.python-version`, after `ubuntu-latest` dropped
+  the old Python version and the daily run started failing.
+- Pinned every action to a full commit SHA.
+- Moved packages to a hashed lockfile, installed as wheels only.
+- Added Dependabot for actions and Python packages.
+- Added a PR Checks workflow and tests for the API layer.
+
+## Updating Dependencies
 
 `requirements.in` lists the direct dependencies. `requirements.txt` is the
 lockfile generated from it, with a hash for every package. Don't edit
@@ -141,7 +116,8 @@ can arrive at any time and skip the cooldown.
 The PR Checks workflow is set to run on every PR, with no secrets, but it isn't
 a required check yet. It does the locked install and runs `tests/`, which make
 real `aiohttp` and `requests` calls against a local stub, not GitHub. To run them
-yourself, use `python3 -m unittest discover -s tests`.
+yourself, install `requirements.txt` on the Python in `.python-version`, then use
+`python3 -m unittest discover -s tests`.
 
 It doesn't check package ages, HTTPS or a real run against GitHub, so also check
 these by hand. For Dependabot's Python PRs:
@@ -156,9 +132,10 @@ these by hand. For Dependabot's Python PRs:
   too new, unless it's the package the advisory fixes. Restore
   `requirements.txt` afterwards.
 - After merging, the run's log has no `aiohttp failed` lines and the cards show
-  real values. A green job alone doesn't prove the update works. Any error prints
-  that line, so compare a lone one with the next run. If the check keeps failing, revert the merge. The
-  next good run regenerates the cards.
+  real values. A green job alone doesn't prove the update works. Any exception in
+  an API call prints that line, so compare a lone one with the next run. A rejected token
+  prints nothing, which is why the values matter too. If the check keeps failing,
+  revert the merge. The next good run regenerates the cards.
 
 For Dependabot's Actions PRs:
 
@@ -186,32 +163,11 @@ only records how that file was generated, and it doesn't update versions.
 that file, and going by its source, Dependabot does too. Regenerate the lockfile
 when that changes.
 
-# Support the Project
+## Credits and License
 
-There are a few things you can do to support the project:
-
-- Star the repository (and follow me on GitHub for more)
-- Share and upvote on sites like Twitter, Reddit, and Hacker News
-- Report any bugs, glitches, or errors that you find
-
-These things motivate me to keep sharing what I build, and they provide
-validation that my work is appreciated! They also help me improve the
-project. Thanks in advance!
-
-If you are insistent on spending money to show your support, I encourage you to
-instead make a generous donation to one of the following organizations. By advocating
-for Internet freedoms, organizations like these help me to feel comfortable
-releasing work publicly on the Web.
-
-- [Electronic Frontier Foundation](https://supporters.eff.org/donate/)
-- [Signal Foundation](https://signal.org/donate/)
-- [Mozilla](https://donate.mozilla.org/en-US/)
-- [The Internet Archive](https://archive.org/donate/index.php)
-
-
-# Related Projects
-
-- Inspired by a desire to improve upon
-  [anuraghazra/github-readme-stats](https://github.com/anuraghazra/github-readme-stats)
-- Makes use of [GitHub Octicons](https://primer.style/octicons/) to precisely
-  match the GitHub UI
+- Copied from [jstrieb/github-stats](https://github.com/jstrieb/github-stats),
+  which came up with the idea and wrote the code and card design here. That
+  project was inspired by
+  [anuraghazra/github-readme-stats](https://github.com/anuraghazra/github-readme-stats).
+- Icons are [GitHub Octicons](https://primer.style/octicons/).
+- Licensed under GPL-3.0, the same as the original. See [LICENSE](LICENSE).
