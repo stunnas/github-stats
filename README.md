@@ -14,14 +14,14 @@ See [Credits and License](#credits-and-license).
 
 ## How It Works
 
-The "Generate Stats Images" workflow runs daily at 00:05 UTC, on every push to
+The "Generate Stats Images" workflow runs daily, on every push to
 `master`, and by hand from the [Actions
 page](../../actions?query=workflow%3A"Generate+Stats+Images"). It collects
 statistics through the GitHub API using the `ACCESS_TOKEN` secret, fills in the
 SVGs from `templates/`, and commits the results to `generated/`.
 
-Only cards that changed get a commit. A card that hasn't moved in a while usually
-means its numbers didn't change, not that the workflow failed.
+Only cards that changed get a commit, so if a card looks stale, check the latest
+run on the Actions page.
 
 | Path | What it holds |
 |---|---|
@@ -35,14 +35,15 @@ means its numbers didn't change, not that the workflow failed.
 
 ## Known Limits
 
-**Private repo names can leak.** The token can read private repos, and `aiohttp`
-may include the requested URL in an exception. Those errors show up in the
-Actions logs, and on a public repo anyone can read them.
+**Private repo names can leak.** The token can read private repos. When an
+`aiohttp` request fails, the code retries with `requests`, and if that fails too,
+the traceback in the Actions log can include the URL, which has the repo name in
+it. Anyone can read the logs of a public repo.
 
-**Some numbers are approximate.** View counts and lines changed are probably
-somewhat off because of how GitHub's statistics API behaves, and they get more
-accurate as GitHub caches statistics for each repo. Repos last contributed to
-more than a year ago may be missing. The original project's issues
+**Some numbers are approximate.** View counts only cover the past two weeks.
+Lines changed are probably somewhat off because of how GitHub's statistics API
+behaves, and get more accurate as GitHub caches statistics for each repo. Repos
+last contributed to more than a year ago may be missing. The original project's issues
 [#2](https://github.com/jstrieb/github-stats/issues/2),
 [#3](https://github.com/jstrieb/github-stats/issues/3) and
 [#13](https://github.com/jstrieb/github-stats/issues/13) have more detail.
@@ -53,26 +54,29 @@ The original project has since been rewritten in Zig, so use
 [its repo](https://github.com/jstrieb/github-stats) for the current version. To
 run this Python version instead:
 
-1. Fork this repo, then turn on workflows in the fork's Actions tab.
-2. Create a classic personal access token with the `repo` and `read:org` scopes.
-   A fine-grained token only covers one owner, so it misses repos from an
-   organization. The `repo` scope can also write to your repos, so keep the token
-   only as an Actions secret.
-3. On the [Secrets page](../../settings/secrets/actions), add it as a repository
-   secret called `ACCESS_TOKEN`.
+1. Fork this repo, then turn on workflows in the fork's Actions tab. A fork of a
+   public repo is always public, so [Known Limits](#known-limits) applies to your
+   logs too. Syncing the fork runs the synced code with your token, so read the
+   changes first.
+2. Create a classic personal access token with an expiry and the `repo` and
+   `read:org` scopes, the ones this repo's token has. A fine-grained token only
+   covers one owner, so it can't read across owners. The `repo` scope can also
+   write to your repos, so keep the token only as an Actions secret, and renew it
+   before it expires.
+3. Under Settings, Secrets and variables, Actions in your fork, add it as a
+   repository secret called `ACCESS_TOKEN`.
 4. Optionally, change what the cards count:
    - `EXCLUDED` secret: repos to ignore, in `owner/name` format, separated by
      commas.
    - `EXCLUDED_LANGS` secret: languages to ignore, separated by commas, such as
      `html,tex`.
    - `EXCLUDE_FORKED_REPOS` in [the workflow](.github/workflows/main.yml): set it
-     to `true` to drop every repo you don't own, organization repos included.
-     Your own forks are left out either way.
+     to `true` to leave out repos GitHub lists as contributed to. Repos you
+     collaborate on may still count. Your own forks are left out either way.
 
-   The first two are secrets so they don't reveal private repo names.
-5. Run the workflow from the [Actions
-   page](../../actions?query=workflow%3A"Generate+Stats+Images"). The cards appear
-   in [`generated/`](generated).
+   The first two are secrets so they don't reveal details of private repos.
+5. Run "Generate Stats Images" from your fork's Actions tab. The cards appear in
+   `generated/`.
 6. To show them on your profile, add these lines to your profile README, with
    your GitHub username in place of `username`:
    ```md
@@ -83,6 +87,8 @@ run this Python version instead:
    ```
 
 ## What I Changed
+
+Changes from the original, made in November 2026:
 
 - Moved to Python 3.13, set in `.python-version`, after `ubuntu-latest` dropped
   the old Python version and the daily run started failing.
@@ -108,7 +114,8 @@ can arrive at any time and skip the cooldown.
 The PR Checks workflow is set to run on every PR, with no secrets, but it isn't
 a required check yet. It does the locked install and runs `tests/`, which make
 real `aiohttp` and `requests` calls against a local stub, not GitHub. To run them
-yourself, use `python3 -m unittest discover -s tests`.
+yourself, install `requirements.txt` on the Python in `.python-version`, then use
+`python3 -m unittest discover -s tests`.
 
 It doesn't check package ages, HTTPS or a real run against GitHub, so also check
 these by hand. For Dependabot's Python PRs:
@@ -123,9 +130,10 @@ these by hand. For Dependabot's Python PRs:
   too new, unless it's the package the advisory fixes. Restore
   `requirements.txt` afterwards.
 - After merging, the run's log has no `aiohttp failed` lines and the cards show
-  real values. A green job alone doesn't prove the update works. Any error prints
-  that line, so compare a lone one with the next run. If the check keeps failing, revert the merge. The
-  next good run regenerates the cards.
+  real values. A green job alone doesn't prove the update works. Any exception
+  prints that line, so compare a lone one with the next run. A rejected token
+  prints nothing, which is why the values matter too. If the check keeps failing,
+  revert the merge. The next good run regenerates the cards.
 
 For Dependabot's Actions PRs:
 
