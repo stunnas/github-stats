@@ -56,13 +56,15 @@ run this Python version instead:
 
 1. Fork this repo, then turn on workflows in the fork's Actions tab. A fork of a
    public repo is always public, so [Known Limits](#known-limits) applies to your
-   logs too. Syncing the fork runs the synced code with your token, so read the
-   changes first.
+   logs too, and your cards publish totals that include your private repos.
+   Syncing the fork runs the synced code with your token, so read the changes
+   first.
 2. Create a classic personal access token with an expiry and the `repo` and
-   `read:org` scopes, the ones this repo's token has. A fine-grained token only
-   covers one owner, so it can't read across owners. The `repo` scope can also
-   write to your repos, so keep the token only as an Actions secret, and renew it
-   before it expires.
+   `read:org` scopes, the ones this repo's token has. `read:org` may not be needed,
+   but I haven't tested without it. A fine-grained token only covers one owner,
+   so it can't read private repos across owners. The `repo` scope can also write
+   to your repos, so keep the token only as an Actions secret. Renew it before it
+   expires: an expired token still gives a green run, but the cards drop to zeros.
 3. Under Settings, Secrets and variables, Actions in your fork, add it as a
    repository secret called `ACCESS_TOKEN`.
 4. Optionally, change what the cards count:
@@ -130,8 +132,8 @@ these by hand. For Dependabot's Python PRs:
   too new, unless it's the package the advisory fixes. Restore
   `requirements.txt` afterwards.
 - After merging, the run's log has no `aiohttp failed` lines and the cards show
-  real values. A green job alone doesn't prove the update works. Any exception
-  prints that line, so compare a lone one with the next run. A rejected token
+  real values. A green job alone doesn't prove the update works. Any exception in
+  an API call prints that line, so compare a lone one with the next run. A rejected token
   prints nothing, which is why the values matter too. If the check keeps failing,
   revert the merge. The next good run regenerates the cards.
 
